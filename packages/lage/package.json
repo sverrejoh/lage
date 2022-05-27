@@ -30,6 +30,7 @@
     "watchpack": "1.6.1"
   },
   "dependencies": {
+    "@types/prompt-sync": "^4.1.1",
     "@xmldom/xmldom": "^0.8.0",
     "abort-controller": "^3.0.0",
     "backfill": "^6.1.13",
@@ -47,6 +48,7 @@
     "p-graph": "^1.1.1",
     "p-limit": "^3.1.0",
     "p-profiler": "^0.2.1",
+    "prompt-sync": "^4.2.0",
     "workspace-tools": "^0.18.2",
     "yargs-parser": "^18.1.3"
   },

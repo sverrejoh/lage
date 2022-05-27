@@ -9,6 +9,7 @@ import { getPackageAndTask } from "./taskId";
 import { CacheOptions } from "../types/CacheOptions";
 import { TargetStatus } from "../types/TargetStatus";
 import { LoggableTarget, PipelineTarget } from "../types/PipelineDefinition";
+import prompt from "prompt-sync";
 
 export class WrappedTarget implements LoggableTarget {
   static npmCmd: string = "";
@@ -124,35 +125,52 @@ export class WrappedTarget implements LoggableTarget {
 
       // Wraps with profiler as well as task args
       await context.profiler.run(() => {
-        if (!target.run) {
-          return Promise.resolve();
-        }
 
-        let result: Promise<unknown> | void;
+	const createRun = () => {
+          if (!target.run) {
+            return Promise.resolve();
+          }
+  
+          let result: Promise<unknown> | void;
+  
+          if (target.packageName) {
+            result = target.run({
+              packageName: target.packageName,
+              config: this.config,
+              cwd: target.cwd,
+              options: target.options,
+              taskName: getPackageAndTask(target.id).task,
+              logger,
+            });
+          } else {
+            result = target.run({
+              config: this.config,
+              cwd: target.cwd,
+              options: target.options,
+              logger,
+            });
+          }
+  
+          if (!result || typeof result["then"] !== "function") {
+            return Promise.resolve(result);
+          }
 
-        if (target.packageName) {
-          result = target.run({
-            packageName: target.packageName,
-            config: this.config,
-            cwd: target.cwd,
-            options: target.options,
-            taskName: getPackageAndTask(target.id).task,
-            logger,
-          });
-        } else {
-          result = target.run({
-            config: this.config,
-            cwd: target.cwd,
-            options: target.options,
-            logger,
-          });
-        }
+	  result = result.catch(err => {
+	    const answer = prompt()("Something failed. Retry? (Y/n)");
+	    if (answer.trim() === "n" || answer.trim() === "N" ) {
+	      console.log("Give up!");
+	      return err
+	    } else {
+	      console.log("Retry!");
+  	      return createRun();
+	    }
+	  });
+  
+          return result as Promise<unknown>;
+  	}
 
-        if (!result || typeof result["then"] !== "function") {
-          return Promise.resolve(result);
-        }
-
-        return result as Promise<unknown>;
+	return createRun();
+	
       }, target.id);
 
       if (cacheEnabled) {
